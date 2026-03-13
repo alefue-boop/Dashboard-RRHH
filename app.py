@@ -8,38 +8,41 @@ import plotly.express as px
 # Configuración de la página
 st.set_page_config(page_title="Dashboard RRHH - Vigencia Contratos", layout="wide")
 
-# Función para cargar datos y limpiarlos automáticamente
 @st.cache_data
 def load_data():
-    # Cargar el archivo con separador de punto y coma
-    df = pd.read_csv("Base_Datos_Vigencia_RRHH.csv", sep=";")
+    # Leer el NUEVO archivo (asegúrate que en GitHub se llame exactamente así)
+    df = pd.read_csv("Base_Datos_Vigencia_RRHH.csv.csv", sep=";")
     
-    # --- Limpieza de datos en vivo ---
     # 1. Limpiar espacios vacíos y poner todo en mayúscula
     for col in df.select_dtypes(include=['object']).columns:
         df[col] = df[col].astype(str).str.strip().str.upper()
         df[col] = df[col].replace('NAN', np.nan)
         
-    # 2. Crear columna TIPO_CONTRATO a partir de VIGENCIA CTTO
-    def clasificar_contrato(val):
-        if pd.isna(val): return "DESCONOCIDO"
-        val = str(val)
-        if 'INDEFINIDO' in val: return 'INDEFINIDO'
-        elif 'ITEM' in val or 'HASTA' in val: return 'OBRA O FAENA'
-        elif re.match(r'\d{4}-\d{2}-\d{2}', val): return 'PLAZO FIJO'
-        else: return 'OTRO'
-    df['TIPO_CONTRATO'] = df['VIGENCIA CTTO'].apply(clasificar_contrato)
+    # 2. NUEVA LÓGICA: Crear TIPO_CONTRATO a partir de las nuevas columnas
+    def clasificar_contrato(row):
+        term = str(row.get('FECHA APROX TERMINO ITEM', '')).upper()
+        renov = str(row.get('RENOVACIÓN 2', '')).upper()
+        
+        if term == 'INDEFINIDO' or renov == 'INDEFINIDO':
+            return 'INDEFINIDO'
+        elif 'HASTA TERMINO' in renov or 'ITEM' in renov:
+            return 'OBRA O FAENA'
+        elif re.match(r'\d{4}-\d{2}-\d{2}', term):
+            return 'PLAZO FIJO'
+        return 'OTRO'
 
-    # 3. Simplificar SITUACIÓN en ESTADO_ACTUAL para los gráficos
-    def simplificar_situacion(val):
-        if pd.isna(val): return "SIN ESTADO"
-        val = str(val)
-        if 'VIGENTE' in val or 'INDEFINIDO' in val: return 'VIGENTE'
-        elif 'FINIQUITADO' in val: return 'FINIQUITADO'
-        elif 'VENCIDO' in val: return 'VENCIDO'
-        elif 'RENOVACION' in val: return 'EN PROCESO DE RENOVACIÓN'
-        else: return val
-    df['ESTADO_ACTUAL'] = df['SITUACIÓN'].apply(simplificar_situacion)
+    # 3. NUEVA LÓGICA: Crear ESTADO_ACTUAL
+    def estado_actual(row):
+        term = str(row.get('FECHA APROX TERMINO ITEM', '')).upper()
+        if 'VENCIDO' in term:
+            return 'VENCIDO'
+        elif term != 'NAN' and term != '':
+            return 'VIGENTE'
+        return 'SIN ESTADO'
+
+    # Aplicar las funciones a nivel de fila (axis=1)
+    df['TIPO_CONTRATO'] = df.apply(clasificar_contrato, axis=1)
+    df['ESTADO_ACTUAL'] = df.apply(estado_actual, axis=1)
     
     return df
 
@@ -47,8 +50,8 @@ def load_data():
 try:
     df = load_data()
 except FileNotFoundError:
-    st.error("❌ Error Crítico: No se encontró el archivo 'Base_Datos_Vigencia_RRHH.csv'.")
-    st.info(f"🔍 Archivos que el servidor está viendo actualmente en la carpeta principal: {os.listdir()}")
+    st.error("❌ Error Crítico: No se encontró el archivo '.csv'.")
+    st.info(f"🔍 Archivos que el servidor está viendo: {os.listdir()}")
     st.stop()
 except Exception as e:
     st.error(f"❌ Ocurrió un error al leer el archivo: {e}")
@@ -77,18 +80,17 @@ if estado_sel != "Todos":
 
 # --- KPIs (MÉTRICAS PRINCIPALES) ---
 st.markdown("### Resumen General")
-# Ahora creamos 5 columnas en lugar de 4
 col1, col2, col3, col4, col5 = st.columns(5)
 
 total_trabajadores = len(df_filtrado)
 vigentes = len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'VIGENTE'])
 indefinidos = len(df_filtrado[df_filtrado['TIPO_CONTRATO'] == 'INDEFINIDO'])
 vencidos = len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'VENCIDO'])
-renovacion = len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'EN PROCESO DE RENOVACIÓN'])
+renovacion = len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'EN PROCESO DE RENOVACIÓN']) # Se mantiene en 0 si no hay en la bd
 
 col1.metric("Total Trabajadores", total_trabajadores)
 col2.metric("✅ Total Vigentes", vigentes)
-col3.metric("♾️ Indefinidos", indefinidos) # NUEVO INDICADOR AGREGADO
+col3.metric("♾️ Indefinidos", indefinidos)
 col4.metric("⚠️ Vencidos", vencidos)
 col5.metric("🔄 En Renovación", renovacion)
 
@@ -113,8 +115,8 @@ with col_graf2:
 
 # --- TABLA DE DATOS INTERACTIVA ---
 st.markdown("### 📋 Detalle de Trabajadores")
-st.markdown("Puedes buscar a un trabajador específico usando la barra de búsqueda en la tabla (arriba a la derecha).")
+st.markdown("Busca a un trabajador específico usando la barra de búsqueda en la tabla (esquina superior derecha).")
 
-# Seleccionamos las columnas más relevantes
-columnas_mostrar = ['RUT', 'NOMBRE', 'CARGO', 'UN', 'FECHA INGRESO', 'VIGENCIA CTTO', 'TIPO_CONTRATO', 'ESTADO_ACTUAL']
+# Actualizado a las columnas de este nuevo archivo
+columnas_mostrar = ['RUT', 'NOMBRE', 'CARGO', 'UN', 'FECHA INGRESO', 'RENOVACIÓN 2', 'FECHA APROX TERMINO ITEM', 'TIPO_CONTRATO', 'ESTADO_ACTUAL']
 st.dataframe(df_filtrado[columnas_mostrar], use_container_width=True)
