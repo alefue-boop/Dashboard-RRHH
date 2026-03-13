@@ -44,7 +44,6 @@ def load_data():
     return df
 
 # --- MANEJO INTELIGENTE DE ERRORES ---
-# Si falla, mostrará en pantalla la lista real de archivos para que detectemos el problema
 try:
     df = load_data()
 except FileNotFoundError:
@@ -78,12 +77,20 @@ if estado_sel != "Todos":
 
 # --- KPIs (MÉTRICAS PRINCIPALES) ---
 st.markdown("### Resumen General")
-col1, col2, col3, col4 = st.columns(4)
+# Ahora creamos 5 columnas en lugar de 4
+col1, col2, col3, col4, col5 = st.columns(5)
 
-col1.metric("Total Trabajadores (Filtro)", len(df_filtrado))
-col2.metric("✅ Contratos Vigentes", len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'VIGENTE']))
-col3.metric("⚠️ Contratos Vencidos", len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'VENCIDO']))
-col4.metric("🔄 En Proceso de Renovación", len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'EN PROCESO DE RENOVACIÓN']))
+total_trabajadores = len(df_filtrado)
+vigentes = len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'VIGENTE'])
+indefinidos = len(df_filtrado[df_filtrado['TIPO_CONTRATO'] == 'INDEFINIDO'])
+vencidos = len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'VENCIDO'])
+renovacion = len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'EN PROCESO DE RENOVACIÓN'])
+
+col1.metric("Total Trabajadores", total_trabajadores)
+col2.metric("✅ Total Vigentes", vigentes)
+col3.metric("♾️ Indefinidos", indefinidos) # NUEVO INDICADOR AGREGADO
+col4.metric("⚠️ Vencidos", vencidos)
+col5.metric("🔄 En Renovación", renovacion)
 
 st.markdown("---")
 
