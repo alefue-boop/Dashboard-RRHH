@@ -13,7 +13,8 @@ st.markdown("Plataforma de consulta online para Gerencia General.")
 @st.cache_data
 def load_data():
     # Asegúrate de subir el archivo limpio al repositorio
-    df = pd.read_csv("Base_Datos_Vigencia_Limpia.csv")
+    # Asegúrate de poner el nombre exacto que aparece en GitHub
+    df = pd.read_csv("Base_Datos_Vigencia_RRHH.csv", sep=";")
     return df
 
 df = load_data()
