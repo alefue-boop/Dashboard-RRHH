@@ -1,25 +1,64 @@
-import streamlit as st
+import os
+import re
 import pandas as pd
+import numpy as np
+import streamlit as st
 import plotly.express as px
 
 # Configuración de la página
 st.set_page_config(page_title="Dashboard RRHH - Vigencia Contratos", layout="wide")
 
-# Título del Dashboard
+# Función para cargar datos y limpiarlos automáticamente
+@st.cache_data
+def load_data():
+    # Cargar el archivo con separador de punto y coma
+    df = pd.read_csv("Base_Datos_Vigencia_RRHH.csv", sep=";")
+    
+    # --- Limpieza de datos en vivo ---
+    # 1. Limpiar espacios vacíos y poner todo en mayúscula
+    for col in df.select_dtypes(include=['object']).columns:
+        df[col] = df[col].astype(str).str.strip().str.upper()
+        df[col] = df[col].replace('NAN', np.nan)
+        
+    # 2. Crear columna TIPO_CONTRATO a partir de VIGENCIA CTTO
+    def clasificar_contrato(val):
+        if pd.isna(val): return "DESCONOCIDO"
+        val = str(val)
+        if 'INDEFINIDO' in val: return 'INDEFINIDO'
+        elif 'ITEM' in val or 'HASTA' in val: return 'OBRA O FAENA'
+        elif re.match(r'\d{4}-\d{2}-\d{2}', val): return 'PLAZO FIJO'
+        else: return 'OTRO'
+    df['TIPO_CONTRATO'] = df['VIGENCIA CTTO'].apply(clasificar_contrato)
+
+    # 3. Simplificar SITUACIÓN en ESTADO_ACTUAL para los gráficos
+    def simplificar_situacion(val):
+        if pd.isna(val): return "SIN ESTADO"
+        val = str(val)
+        if 'VIGENTE' in val or 'INDEFINIDO' in val: return 'VIGENTE'
+        elif 'FINIQUITADO' in val: return 'FINIQUITADO'
+        elif 'VENCIDO' in val: return 'VENCIDO'
+        elif 'RENOVACION' in val: return 'EN PROCESO DE RENOVACIÓN'
+        else: return val
+    df['ESTADO_ACTUAL'] = df['SITUACIÓN'].apply(simplificar_situacion)
+    
+    return df
+
+# --- MANEJO INTELIGENTE DE ERRORES ---
+# Si falla, mostrará en pantalla la lista real de archivos para que detectemos el problema
+try:
+    df = load_data()
+except FileNotFoundError:
+    st.error("❌ Error Crítico: No se encontró el archivo 'Base_Datos_Vigencia_RRHH.csv'.")
+    st.info(f"🔍 Archivos que el servidor está viendo actualmente en la carpeta principal: {os.listdir()}")
+    st.stop()
+except Exception as e:
+    st.error(f"❌ Ocurrió un error al leer el archivo: {e}")
+    st.stop()
+
+# --- TÍTULO Y BARRA LATERAL (FILTROS) ---
 st.title("📊 Dashboard de Vigencia de Contratos - Constructora Tafca SPA")
 st.markdown("Plataforma de consulta online para Gerencia General.")
 
-# Función para cargar datos de forma eficiente
-@st.cache_data
-def load_data():
-    # Asegúrate de subir el archivo limpio al repositorio
-    # Asegúrate de poner el nombre exacto que aparece en GitHub
-    df = pd.read_csv("Base_Datos_Vigencia_RRHH.csv", sep=";")
-    return df
-
-df = load_data()
-
-# --- BARRA LATERAL (FILTROS) ---
 st.sidebar.header("Filtros de Búsqueda")
 
 # Filtro por Unidad (UN)
@@ -41,15 +80,10 @@ if estado_sel != "Todos":
 st.markdown("### Resumen General")
 col1, col2, col3, col4 = st.columns(4)
 
-total_trabajadores = len(df_filtrado)
-vigentes = len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'VIGENTE'])
-vencidos = len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'VENCIDO'])
-renovacion = len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'EN PROCESO DE RENOVACIÓN'])
-
-col1.metric("Total Trabajadores (Filtro)", total_trabajadores)
-col2.metric("✅ Contratos Vigentes", vigentes)
-col3.metric("⚠️ Contratos Vencidos", vencidos)
-col4.metric("🔄 En Proceso de Renovación", renovacion)
+col1.metric("Total Trabajadores (Filtro)", len(df_filtrado))
+col2.metric("✅ Contratos Vigentes", len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'VIGENTE']))
+col3.metric("⚠️ Contratos Vencidos", len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'VENCIDO']))
+col4.metric("🔄 En Proceso de Renovación", len(df_filtrado[df_filtrado['ESTADO_ACTUAL'] == 'EN PROCESO DE RENOVACIÓN']))
 
 st.markdown("---")
 
@@ -72,8 +106,8 @@ with col_graf2:
 
 # --- TABLA DE DATOS INTERACTIVA ---
 st.markdown("### 📋 Detalle de Trabajadores")
-st.markdown("Puedes buscar a un trabajador específico usando la barra de búsqueda en la tabla.")
+st.markdown("Puedes buscar a un trabajador específico usando la barra de búsqueda en la tabla (arriba a la derecha).")
 
-# Seleccionamos las columnas más relevantes para mostrar a Gerencia
+# Seleccionamos las columnas más relevantes
 columnas_mostrar = ['RUT', 'NOMBRE', 'CARGO', 'UN', 'FECHA INGRESO', 'VIGENCIA CTTO', 'TIPO_CONTRATO', 'ESTADO_ACTUAL']
 st.dataframe(df_filtrado[columnas_mostrar], use_container_width=True)
