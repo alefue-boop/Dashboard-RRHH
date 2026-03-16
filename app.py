@@ -105,13 +105,12 @@ elif opcion == "Control de Multas":
 
     @st.cache_data
     def load_data_multas():
-        # Leer el archivo de multas
-        df = pd.read_csv("MULTAS.csv.csv", sep=";")
+        # ¡AQUÍ ESTÁ LA SOLUCIÓN! Agregamos encoding="latin-1" para leer las eñes y tildes
+        df = pd.read_csv("MULTAS.csv.csv", sep=";", encoding="latin-1")
         
-        # Limpiar la columna de costo monetario para convertirla en número
+        # Limpiar la columna de costo monetario para convertirla en número y poder sumarla
         def limpiar_monto(valor):
             if pd.isna(valor): return 0
-            # Quitar puntos de miles y convertir a entero
             valor_limpio = str(valor).replace('.', '').strip()
             try:
                 return int(valor_limpio)
@@ -120,7 +119,7 @@ elif opcion == "Control de Multas":
                 
         df['Costo Monetario Num'] = df['Costo Monetario'].apply(limpiar_monto)
         
-        # Limpiar textos de las columnas categóricas
+        # Estandarizar textos de las columnas
         for col in ['Estado Actual', 'Responsable', 'Región']:
             if col in df.columns:
                 df[col] = df[col].astype(str).str.strip().str.upper()
@@ -132,6 +131,9 @@ elif opcion == "Control de Multas":
         df_multas = load_data_multas()
     except FileNotFoundError:
         st.error("❌ Error: No se encontró el archivo 'MULTAS.csv.csv'.")
+        st.stop()
+    except Exception as e:
+        st.error(f"❌ Error al leer el archivo de multas: {e}")
         st.stop()
 
     # Filtros
@@ -155,10 +157,10 @@ elif opcion == "Control de Multas":
     costo_total = df_filtrado_multas['Costo Monetario Num'].sum()
     multas_pagadas = len(df_filtrado_multas[df_filtrado_multas['Estado Actual'] == 'PAGADA'])
     
-    # Formatear el dinero como moneda chilena ($)
+    # Formatear el dinero como moneda ($)
     costo_formateado = f"${costo_total:,.0f}".replace(",", ".")
 
-    col1.metric("Total de Infracciones Registradas", total_multas)
+    col1.metric("Total de Infracciones", total_multas)
     col2.metric("💸 Costo Monetario Total", costo_formateado)
     col3.metric("✅ Multas Pagadas", multas_pagadas)
 
@@ -179,11 +181,11 @@ elif opcion == "Control de Multas":
         costo_por_area = df_filtrado_multas.groupby('Responsable')['Costo Monetario Num'].sum().reset_index()
         fig_area = px.bar(costo_por_area, x='Responsable', y='Costo Monetario Num', text='Costo Monetario Num',
                           color='Responsable', color_discrete_sequence=px.colors.qualitative.Vivid)
-        # Formatear el texto de las barras
+        # Formatear el texto de las barras para que se vea como dinero
         fig_area.update_traces(texttemplate='$%{text:,.0f}')
         st.plotly_chart(fig_area, use_container_width=True)
 
     st.markdown("### 📋 Detalle de Infracciones")
-    # Mostrar la tabla sin la columna numérica interna que creamos para cálculos
+    # Mostrar la tabla sin la columna numérica interna que usamos para calcular
     columnas_multas = [c for c in df_filtrado_multas.columns if c != 'Costo Monetario Num']
     st.dataframe(df_filtrado_multas[columnas_multas], use_container_width=True)
