@@ -31,7 +31,34 @@ st.markdown("""
 
 colores_tafca = ['#800020', '#228B22', '#7A7A7A', '#4A0010', '#1E592F', '#A3A3A3']
 
-# --- 3. CONEXIÓN A GOOGLE SHEETS ---
+# --- 3. SISTEMA DE SEGURIDAD (CONTRASEÑA) ---
+def check_password():
+    """Retorna True si el usuario ingresó la contraseña correcta."""
+    def password_entered():
+        if st.session_state["password"] == st.secrets["password"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Por seguridad, borramos la contraseña de la memoria
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.markdown("### 🔒 Acceso Restringido")
+        st.text_input("Ingrese la contraseña corporativa para acceder al Portal de RRHH:", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.markdown("### 🔒 Acceso Restringido")
+        st.text_input("Ingrese la contraseña corporativa para acceder al Portal de RRHH:", type="password", on_change=password_entered, key="password")
+        st.error("❌ Contraseña incorrecta. Intente nuevamente.")
+        return False
+    else:
+        return True
+
+# Si la contraseña no es correcta, la app se detiene aquí y no muestra nada de lo que sigue
+if not check_password():
+    st.stop()
+
+
+# --- 4. CONEXIÓN A GOOGLE SHEETS ---
 # 👉 PEGA AQUÍ EL ENLACE DE TU GOOGLE SHEET (Mantenlo entre las comillas)
 URL_GOOGLE_SHEET = "https://docs.google.com/spreadsheets/d/18cMneau8DxF6FCzMQmeY0EPoCrSXYt8-dSmbC1USa-s/edit?usp=sharing"
 
@@ -46,11 +73,11 @@ def init_connection():
 try:
     client = init_connection()
 except Exception as e:
-    st.error("❌ Error de Conexión: Revisa que el JSON esté bien copiado en la configuración 'Secrets' de Streamlit.")
+    st.error("❌ Error de Conexión a Google Sheets. Revisa la configuración en 'Secrets'.")
     st.stop()
 
 
-# --- 4. MENÚ DE NAVEGACIÓN ---
+# --- 5. MENÚ DE NAVEGACIÓN ---
 st.sidebar.title("🏢 Portal Tafca SPA")
 st.sidebar.markdown("Seleccione el panel que desea visualizar:")
 opcion = st.sidebar.radio("", ("Vigencia de Contratos", "Control de Multas"))
@@ -63,10 +90,8 @@ if opcion == "Vigencia de Contratos":
     st.title("📊 Dashboard de Vigencia de Contratos")
     st.markdown("Plataforma de consulta online para Gerencia General.")
 
-    # Se actualiza cada 5 minutos (ttl=300)
     @st.cache_data(ttl=300)
     def load_data_contratos():
-        # Abre la pestaña llamada "Contratos"
         sheet = client.open_by_url(URL_GOOGLE_SHEET).worksheet("Contratos")
         data = sheet.get_all_values()
         df = pd.DataFrame(data[1:], columns=data[0])
@@ -97,7 +122,7 @@ if opcion == "Vigencia de Contratos":
     try:
         df_contratos = load_data_contratos()
     except Exception as e:
-        st.error(f"❌ Error al leer la pestaña 'Contratos'. Asegúrate de que se llame exactamente así. Detalles: {e}")
+        st.error(f"❌ Error al leer la pestaña 'Contratos'. Detalles: {e}")
         st.stop()
 
     st.sidebar.header("Filtros de Contratos")
@@ -151,7 +176,6 @@ elif opcion == "Control de Multas":
 
     @st.cache_data(ttl=300)
     def load_data_multas():
-        # Abre la pestaña llamada "Multas"
         sheet = client.open_by_url(URL_GOOGLE_SHEET).worksheet("Multas")
         data = sheet.get_all_values()
         df = pd.DataFrame(data[1:], columns=data[0])
@@ -177,7 +201,7 @@ elif opcion == "Control de Multas":
     try:
         df_multas = load_data_multas()
     except Exception as e:
-        st.error(f"❌ Error al leer la pestaña 'Multas'. Asegúrate de que se llame exactamente así. Detalles: {e}")
+        st.error(f"❌ Error al leer la pestaña 'Multas'. Detalles: {e}")
         st.stop()
 
     st.sidebar.header("Filtros de Multas")
