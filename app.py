@@ -8,30 +8,31 @@ import plotly.express as px
 # --- 1. CONFIGURACIÓN GENERAL ---
 st.set_page_config(page_title="Portal RRHH - Constructora Tafca SPA", layout="wide")
 
-# --- 2. IDENTIDAD CORPORATIVA (CSS y Colores) ---
-# Inyectar CSS para cambiar la fuente a Times New Roman y los títulos a Burdeo
+# --- 2. IDENTIDAD CORPORATIVA (CSS SEGURO) ---
+# Se aplica el diseño sin romper los componentes nativos de Streamlit
 st.markdown("""
     <style>
-    /* Cambiar fuente a Times New Roman en toda la app */
-    html, body, [class*="st-"], p, h1, h2, h3, h4, h5, h6, span, div, label, .stMarkdown {
+    /* Cambiar fuente de textos generales de forma segura */
+    p, span, label, li, .stMarkdown {
         font-family: 'Times New Roman', Times, serif !important;
     }
     
-    /* Títulos principales en color Burdeo corporativo */
-    h1, h2, h3 {
+    /* Títulos en color Burdeo corporativo */
+    h1, h2, h3, h4 {
+        font-family: 'Times New Roman', Times, serif !important;
         color: #800020 !important; 
     }
     
     /* Números de los KPIs en color Verde corporativo */
     [data-testid="stMetricValue"] {
+        font-family: 'Times New Roman', Times, serif !important;
         color: #228B22 !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Definir la paleta de colores para los gráficos (Burdeo, Verde, Plomo, y variaciones para cuando hay más datos)
-colores_tafca = ['#800020', '#228B22', '#7A7A7A', '#4A0010', '#1E592F', '#A3A3A3', '#8B0000', '#2E8B57']
-
+# Paleta corporativa (Burdeo, Verde, Plomo)
+colores_tafca = ['#800020', '#228B22', '#7A7A7A', '#4A0010', '#1E592F', '#A3A3A3']
 
 # --- 3. MENÚ DE NAVEGACIÓN ---
 st.sidebar.title("🏢 Portal Tafca SPA")
@@ -51,12 +52,10 @@ if opcion == "Vigencia de Contratos":
     def load_data_contratos():
         df = pd.read_csv("Base_Datos_Vigencia_RRHH.csv.csv", sep=";")
         
-        # Limpieza textos
         for col in df.select_dtypes(include=['object']).columns:
             df[col] = df[col].astype(str).str.strip().str.upper()
             df[col] = df[col].replace('NAN', np.nan)
             
-        # Lógica TIPO_CONTRATO
         def clasificar_contrato(row):
             term = str(row.get('FECHA APROX TERMINO ITEM', '')).upper()
             renov = str(row.get('RENOVACIÓN 2', '')).upper()
@@ -65,7 +64,6 @@ if opcion == "Vigencia de Contratos":
             elif re.match(r'\d{4}-\d{2}-\d{2}', term): return 'PLAZO FIJO'
             return 'OTRO'
 
-        # Lógica ESTADO_ACTUAL
         def estado_actual(row):
             term = str(row.get('FECHA APROX TERMINO ITEM', '')).upper()
             if 'VENCIDO' in term: return 'VENCIDO'
@@ -104,20 +102,19 @@ if opcion == "Vigencia de Contratos":
 
     st.markdown("---")
     col_graf1, col_graf2 = st.columns(2)
+    
     with col_graf1:
         st.markdown("#### Distribución por Estado")
-        # Se aplican los colores corporativos al gráfico circular
-        fig_estado = px.pie(df_filtrado_ctto, names='ESTADO_ACTUAL', hole=0.4, 
-                            color_discrete_sequence=colores_tafca)
+        fig_estado = px.pie(df_filtrado_ctto, names='ESTADO_ACTUAL', hole=0.4, color_discrete_sequence=colores_tafca)
+        fig_estado.update_layout(font_family="Times New Roman") # Fuerza la letra en el gráfico
         st.plotly_chart(fig_estado, use_container_width=True)
 
     with col_graf2:
         st.markdown("#### Tipos de Contrato")
         tipo_ctto_counts = df_filtrado_ctto['TIPO_CONTRATO'].value_counts().reset_index()
         tipo_ctto_counts.columns = ['TIPO_CONTRATO', 'Cantidad']
-        # Se aplican los colores corporativos al gráfico de barras
-        fig_tipo = px.bar(tipo_ctto_counts, x='TIPO_CONTRATO', y='Cantidad', text='Cantidad', 
-                          color='TIPO_CONTRATO', color_discrete_sequence=colores_tafca)
+        fig_tipo = px.bar(tipo_ctto_counts, x='TIPO_CONTRATO', y='Cantidad', text='Cantidad', color='TIPO_CONTRATO', color_discrete_sequence=colores_tafca)
+        fig_tipo.update_layout(font_family="Times New Roman", showlegend=False) # Fuerza la letra y oculta leyenda redundante
         st.plotly_chart(fig_tipo, use_container_width=True)
 
     st.markdown("### 📋 Detalle de Trabajadores")
@@ -162,7 +159,6 @@ elif opcion == "Control de Multas":
         st.error(f"❌ Error al leer el archivo de multas: {e}")
         st.stop()
 
-    # Filtros
     st.sidebar.header("Filtros de Multas")
     anios = ["Todos"] + sorted(list(df_multas['Año'].dropna().unique()), reverse=True)
     anio_sel = st.sidebar.selectbox("Año de la Multa:", anios)
@@ -170,46 +166,13 @@ elif opcion == "Control de Multas":
     resp = ["Todos"] + list(df_multas['Responsable'].dropna().unique())
     resp_sel = st.sidebar.selectbox("Área Responsable:", resp)
 
-    # Aplicar filtros
     df_filtrado_multas = df_multas.copy()
     if anio_sel != "Todos": df_filtrado_multas = df_filtrado_multas[df_filtrado_multas['Año'] == anio_sel]
     if resp_sel != "Todos": df_filtrado_multas = df_filtrado_multas[df_filtrado_multas['Responsable'] == resp_sel]
 
-    # KPIs de Multas
     st.markdown("### Resumen Financiero")
     col1, col2, col3 = st.columns(3)
     
     total_multas = len(df_filtrado_multas)
     costo_total = df_filtrado_multas['Costo Monetario Num'].sum()
-    multas_pagadas = len(df_filtrado_multas[df_filtrado_multas['Estado Actual'] == 'PAGADA'])
-    
-    costo_formateado = f"${costo_total:,.0f}".replace(",", ".")
-
-    col1.metric("Total de Infracciones", total_multas)
-    col2.metric("💸 Costo Monetario Total", costo_formateado)
-    col3.metric("✅ Multas Pagadas", multas_pagadas)
-
-    st.markdown("---")
-    
-    # Gráficos de Multas
-    col_graf1, col_graf2 = st.columns(2)
-    
-    with col_graf1:
-        st.markdown("#### Estado Actual de las Multas")
-        # Colores corporativos aplicados aquí
-        fig_estado_m = px.pie(df_filtrado_multas, names='Estado Actual', hole=0.4,
-                              color_discrete_sequence=colores_tafca)
-        st.plotly_chart(fig_estado_m, use_container_width=True)
-
-    with col_graf2:
-        st.markdown("#### Costo Total por Área Responsable")
-        costo_por_area = df_filtrado_multas.groupby('Responsable')['Costo Monetario Num'].sum().reset_index()
-        # Colores corporativos aplicados aquí
-        fig_area = px.bar(costo_por_area, x='Responsable', y='Costo Monetario Num', text='Costo Monetario Num',
-                          color='Responsable', color_discrete_sequence=colores_tafca)
-        fig_area.update_traces(texttemplate='$%{text:,.0f}')
-        st.plotly_chart(fig_area, use_container_width=True)
-
-    st.markdown("### 📋 Detalle de Infracciones")
-    columnas_multas = [c for c in df_filtrado_multas.columns if c != 'Costo Monetario Num']
-    st.dataframe(df_filtrado_multas[columnas_multas], use_container_width=True)
+    multas_pagadas = len(df_filtrado_multas
