@@ -47,7 +47,7 @@ def cargar_desde_drive(url, tipo="multas"):
         try:
             df = pd.read_csv(url, encoding="utf-8", on_bad_lines="skip")
         except UnicodeDecodeError:
-            # Si falla, usamos formato latino (muy común con archivos chilenos)
+            # Si falla, usamos formato latino (muy común con archivos)
             df = pd.read_csv(url, encoding="latin-1", on_bad_lines="skip")
         
         if len(df.columns) > 0 and str(df.columns[0]).strip().startswith('<'):
@@ -57,4 +57,10 @@ def cargar_desde_drive(url, tipo="multas"):
         
         if tipo == "multas":
             for col in df.columns:
-                if 'A' in col and 'o' in col and len(col) <= 4: df.rename(columns={col: 'Año'}, inplace
+                if 'A' in col and 'o' in col and len(col) <= 4: 
+                    df.rename(columns={col: 'Año'}, inplace=True)
+            if 'Costo Monetario' in df.columns and 'Año' in df.columns:
+                df = df.dropna(subset=['Costo Monetario', 'Año']).copy()
+                df['Año'] = pd.to_numeric(df['Año'], errors='coerce').fillna(0).astype(int).astype(str)
+                df['Estado Actual'] = df['Estado Actual'].astype(str).str.upper().str.strip().replace({'PAGADO': 'PAGADA', 'SIN EFECTO': 'DEJA SIN EFECTO'})
+                df['Responsable'] = df['Responsable'].astype(str).str.upper().str.strip()
