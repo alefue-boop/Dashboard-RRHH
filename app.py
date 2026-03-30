@@ -9,8 +9,8 @@ st.title("📊 Dashboard Integrado de RRHH y Control de Gestión")
 # =====================================================================
 # PEGA AQUÍ TUS ENLACES DE GOOGLE DRIVE (Publicados como CSV)
 # =====================================================================
-URL_MULTAS = "PEGA_AQUI_TU_ENLACE_CSV_DE_MULTAS"
-URL_CONTRATOS = "PEGA_AQUI_TU_ENLACE_CSV_DE_CONTRATOS"
+URL_MULTAS = "https://docs.google.com/spreadsheets/d/18cMneau8DxF6FCzMQmeY0EPoCrSXYt8-dSmbC1USa-s/edit?usp=sharing"
+URL_CONTRATOS = "https://docs.google.com/spreadsheets/d/18cMneau8DxF6FCzMQmeY0EPoCrSXYt8-dSmbC1USa-s/edit?usp=sharing"
 
 
 # ---------------- FUNCIONES DE LIMPIEZA ----------------
