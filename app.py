@@ -1,11 +1,17 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import os
 
 # 1. Configuración de la página
 st.set_page_config(page_title="Dashboard RRHH", page_icon="📊", layout="wide")
 st.title("📊 Dashboard Integrado de RRHH y Control de Gestión")
+
+# =====================================================================
+# PEGA AQUÍ TUS ENLACES DE GOOGLE DRIVE (Publicados como CSV)
+# =====================================================================
+URL_MULTAS = "PEGA_AQUI_TU_ENLACE_CSV_DE_MULTAS"
+URL_CONTRATOS = "PEGA_AQUI_TU_ENLACE_CSV_DE_CONTRATOS"
+
 
 # ---------------- FUNCIONES DE LIMPIEZA ----------------
 def formato_clp(valor):
@@ -29,27 +35,27 @@ def arreglar_numeros(val):
     try: return float(val)
     except: return None
 
-# ---------------- CARGA DE DATOS: MULTAS ----------------
+# ---------------- CARGA DE DATOS DESDE GOOGLE DRIVE ----------------
 @st.cache_data
-def cargar_multas():
-    archivos = ["MULTAS.csv", "RESUMEN MULTAS.xls - MULTAS.csv", "RESUMEN_MULTAS.csv"]
-    archivo_encontrado = next((arch for arch in archivos if os.path.exists(arch)), None)
+def cargar_multas_drive(url):
+    if url == "PEGA_AQUI_TU_ENLACE_CSV_DE_MULTAS" or url == "":
+        return pd.DataFrame() # Retorna vacío si no han puesto el link
     
-    if not archivo_encontrado: return pd.DataFrame()
-
     opciones_formato = [
         {"skiprows": 4, "sep": ",", "encoding": "utf-8"},
         {"skiprows": 4, "sep": ",", "encoding": "latin-1"},
-        {"skiprows": 0, "sep": ";", "encoding": "latin-1"},
         {"skiprows": 0, "sep": ",", "encoding": "utf-8"}
     ]
     
     for config in opciones_formato:
         try:
-            df = pd.read_csv(archivo_encontrado, skiprows=config["skiprows"], sep=config["sep"], encoding=config["encoding"], on_bad_lines="skip")
+            # Pandas lee directamente el enlace de Google Drive
+            df = pd.read_csv(url, skiprows=config["skiprows"], sep=config["sep"], encoding=config["encoding"], on_bad_lines="skip")
             df.columns = df.columns.str.strip()
+            
             for col in df.columns:
                 if 'A' in col and 'o' in col and len(col) <= 4: df.rename(columns={col: 'Año'}, inplace=True)
+                
             if 'Costo Monetario' in df.columns and 'Año' in df.columns:
                 df = df.dropna(subset=['Costo Monetario', 'Año']).copy()
                 df['Año'] = pd.to_numeric(df['Año'], errors='coerce').fillna(0).astype(int).astype(str)
@@ -62,26 +68,21 @@ def cargar_multas():
         except: continue
     return pd.DataFrame()
 
-# ---------------- CARGA DE DATOS: CONTRATOS ----------------
 @st.cache_data
-def cargar_contratos():
-    # Busca automáticamente un archivo que se llame CONTRATOS.csv
-    archivos = ["CONTRATOS.csv", "contratos.csv", "VIGENCIA.csv"]
-    archivo_encontrado = next((arch for arch in archivos if os.path.exists(arch)), None)
-    
-    if not archivo_encontrado: return pd.DataFrame() # Si no existe, devuelve tabla vacía sin caerse
+def cargar_contratos_drive(url):
+    if url == "PEGA_AQUI_TU_ENLACE_CSV_DE_CONTRATOS" or url == "":
+        return pd.DataFrame()
     
     try:
-        # Motor inteligente para leer cualquier formato de Excel chileno
-        df = pd.read_csv(archivo_encontrado, sep=None, engine='python', encoding="latin-1", on_bad_lines="skip")
+        df = pd.read_csv(url, encoding="utf-8", on_bad_lines="skip")
         df.columns = df.columns.str.strip()
         return df
     except:
         return pd.DataFrame()
 
-# Cargar ambas bases
-df_multas = cargar_multas()
-df_contratos = cargar_contratos()
+# Cargar ambas bases directamente desde la nube
+df_multas = cargar_multas_drive(URL_MULTAS)
+df_contratos = cargar_contratos_drive(URL_CONTRATOS)
 
 # ---------------- CREACIÓN DE PESTAÑAS (TABS) ----------------
 tab1, tab2 = st.tabs(["📑 Control de Multas (Insp. del Trabajo)", "📄 Control de Vigencia de Contratos"])
@@ -91,7 +92,7 @@ tab1, tab2 = st.tabs(["📑 Control de Multas (Insp. del Trabajo)", "📄 Contro
 # =====================================================================
 with tab1:
     if df_multas.empty:
-        st.warning("⚠️ No se encontró la base de datos de MULTAS.csv con el formato correcto.")
+        st.info("⚠️ Ingresa el enlace correcto de Google Drive en la variable URL_MULTAS dentro del código.")
     else:
         st.sidebar.header("Filtros: Multas")
         anio_filtro = st.sidebar.multiselect("Seleccionar Año:", options=sorted(df_multas['Año'].unique()), default=sorted(df_multas['Año'].unique()), key="filtro_anio")
@@ -129,32 +130,7 @@ with tab2:
     st.header("📄 Visor de Vigencia de Contratos")
     
     if df_contratos.empty:
-        st.info("ℹ️ Para activar este módulo, sube a tu cuenta de GitHub un archivo de Excel/CSV llamado exactamente 'CONTRATOS.csv' con los datos de tu personal.")
+        st.info("ℹ️ Ingresa el enlace correcto de Google Drive en la variable URL_CONTRATOS dentro del código.")
     else:
-        # Filtros exclusivos para contratos (en la barra lateral, pero solo se usan aquí)
         st.sidebar.divider()
         st.sidebar.header("Filtros: Contratos")
-        
-        # Filtro de Obra (Si existe la columna)
-        if 'Obra' in df_contratos.columns:
-            obras_unicas = df_contratos['Obra'].dropna().unique()
-            obra_filtro = st.sidebar.multiselect("Filtrar por Obra:", options=obras_unicas, default=obras_unicas)
-            df_ctto_filtrado = df_contratos[df_contratos['Obra'].isin(obra_filtro)]
-        else:
-            df_ctto_filtrado = df_contratos
-
-        # Tabla Segura a prueba de errores
-        st.subheader("Base de Datos Activa")
-        
-        # Lista de columnas ideales que nos gustaría mostrar a la gerencia
-        columnas_ideales_ctto = ['RUT', 'Nombre', 'Obra', 'Cargo', 'Fecha Inicio', 'Vigencia', 'Estado Contrato']
-        
-        # El sistema cruza lo ideal con lo que realmente tiene tu archivo
-        columnas_seguras_ctto = [col for col in columnas_ideales_ctto if col in df_ctto_filtrado.columns]
-        
-        # Si encontró al menos una de nuestras columnas ideales, muestra solo esas para mantener el orden
-        if len(columnas_seguras_ctto) > 0:
-            st.dataframe(df_ctto_filtrado[columnas_seguras_ctto], use_container_width=True, hide_index=True)
-        else:
-            # Si ninguna de las columnas ideales existe (porque tienen otros nombres), muestra toda la tabla sin caerse
-            st.dataframe(df_ctto_filtrado, use_container_width=True, hide_index=True)
