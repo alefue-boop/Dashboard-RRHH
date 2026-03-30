@@ -9,8 +9,8 @@ st.title("📊 Dashboard Integrado de RRHH y Control de Gestión")
 # =====================================================================
 # PEGA AQUÍ TU ENLACE NORMAL DE GOOGLE DRIVE O GOOGLE SHEETS
 # =====================================================================
-URL_MULTAS = "PEGA_AQUI_EL_ENLACE"
-URL_CONTRATOS = "PEGA_AQUI_EL_ENLACE"
+URL_MULTAS = "https://docs.google.com/spreadsheets/d/18cMneau8DxF6FCzMQmeY0EPoCrSXYt8-dSmbC1USa-s/edit?usp=sharing"
+URL_CONTRATOS = "https://docs.google.com/spreadsheets/d/18cMneau8DxF6FCzMQmeY0EPoCrSXYt8-dSmbC1USa-s/edit?usp=sharing"
 
 def formato_clp(valor):
     if pd.isna(valor): return "$0"
