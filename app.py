@@ -134,3 +134,20 @@ with tab2:
     else:
         st.sidebar.divider()
         st.sidebar.header("Filtros: Contratos")
+        
+        if 'Obra' in df_contratos.columns:
+            obras_unicas = df_contratos['Obra'].dropna().unique()
+            obra_filtro = st.sidebar.multiselect("Filtrar por Obra:", options=obras_unicas, default=obras_unicas)
+            df_ctto_filtrado = df_contratos[df_contratos['Obra'].isin(obra_filtro)]
+        else:
+            df_ctto_filtrado = df_contratos
+
+        st.subheader("Base de Datos Activa")
+        
+        columnas_ideales_ctto = ['RUT', 'Nombre', 'Obra', 'Cargo', 'Fecha Inicio', 'Vigencia', 'Estado Contrato']
+        columnas_seguras_ctto = [col for col in columnas_ideales_ctto if col in df_ctto_filtrado.columns]
+        
+        if len(columnas_seguras_ctto) > 0:
+            st.dataframe(df_ctto_filtrado[columnas_seguras_ctto], use_container_width=True, hide_index=True)
+        else:
+            st.dataframe(df_ctto_filtrado, use_container_width=True, hide_index=True)
