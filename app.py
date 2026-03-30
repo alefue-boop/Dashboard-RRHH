@@ -7,7 +7,7 @@ st.set_page_config(page_title="Dashboard RRHH", page_icon="📊", layout="wide")
 st.title("📊 Dashboard Integrado de RRHH y Control de Gestión")
 
 # =====================================================================
-# PEGA AQUÍ TU ENLACE NORMAL DE GOOGLE DRIVE O GOOGLE SHEETS
+# TUS ENLACES DE GOOGLE DRIVE O GOOGLE SHEETS
 # =====================================================================
 URL_MULTAS = "https://docs.google.com/spreadsheets/d/18cMneau8DxF6FCzMQmeY0EPoCrSXYt8-dSmbC1USa-s/edit?usp=sharing"
 URL_CONTRATOS = "https://docs.google.com/spreadsheets/d/18cMneau8DxF6FCzMQmeY0EPoCrSXYt8-dSmbC1USa-s/edit?usp=sharing"
@@ -35,7 +35,7 @@ def cargar_desde_drive(url, tipo="multas"):
     if "PEGA_AQUI" in url or url.strip() == "":
         return pd.DataFrame(), "⚠️ Falta que pegues el enlace de Google Drive en el código."
     
-    # TRADUCTOR AUTOMÁTICO DE LINKS MEJORADO (Sheets y Drive normal)
+    # TRADUCTOR AUTOMÁTICO DE LINKS MEJORADO
     if "drive.google.com/file/d/" in url:
         file_id = url.split("/file/d/")[1].split("/")[0]
         url = f"https://drive.google.com/uc?id={file_id}&export=download"
